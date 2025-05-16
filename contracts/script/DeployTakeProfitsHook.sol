@@ -12,6 +12,7 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 import {TakeProfitsHook} from "../src/TakeProfitsHook.sol";
+import {KYCRegistry} from "../src/KYCRegistry.sol";
 import {SwapParams, ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
@@ -66,6 +67,13 @@ contract DeployTakeProfitsHook is Script, Deployers {
 
     function run() public {
         vm.startBroadcast();
+        // Deploy KYC registry
+        KYCRegistry kycRegistry = new KYCRegistry();
+        
+        // Approve YEHIA and TASNEEM in the KYC registry
+        kycRegistry.approveKYC(YEHIA);
+        kycRegistry.approveKYC(TASNEEEM);
+        
         // Deploy two test tokens
         TestToken token0 = new TestToken("Order Hookah", "Hookah");
         TestToken token1 = new TestToken("USDC", "USDC");
@@ -100,14 +108,14 @@ contract DeployTakeProfitsHook is Script, Deployers {
 
         // Mine a salt that will produce a hook address with the correct flags
         bytes memory creationCode = type(TakeProfitsHook).creationCode;
-        bytes memory constructorArgs = abi.encode(POOL_MANAGER, "");
+        bytes memory constructorArgs = abi.encode(POOL_MANAGER, "", address(kycRegistry));
 
         (address hookAddress, bytes32 salt) = HookMiner.find(CREATE2_DEPLOYER, flags, creationCode, constructorArgs);
 
         console.log("Computed Hook Address:", hookAddress);
         
         // Cast to the hook type
-        TakeProfitsHook hook = new TakeProfitsHook{salt: salt}(IPoolManager(POOL_MANAGER), "");
+        TakeProfitsHook hook = new TakeProfitsHook{salt: salt}(IPoolManager(POOL_MANAGER), "", kycRegistry);
         console.log("Deployed Hook Address:", address(hook));
 
         // Only proceed if hook deployment was successful

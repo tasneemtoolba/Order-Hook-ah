@@ -20,6 +20,8 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
+import {KYCRegistry} from "./KYCRegistry.sol";
+
 contract TakeProfitsHook is BaseHook, ERC1155 {
     using StateLibrary for IPoolManager;
     using FixedPointMathLib for uint256;
@@ -31,14 +33,20 @@ contract TakeProfitsHook is BaseHook, ERC1155 {
 
     mapping(uint256 orderId => uint256 outputClaimable) public claimableOutputTokens;
     mapping(uint256 orderId => uint256 claimsSupply) public claimTokensSupply;
+    
+    // KYC Registry
+    KYCRegistry public kycRegistry;
 
     // Errors
     error InvalidOrder();
     error NothingToClaim();
     error NotEnoughToClaim();
+    error NotKYCApproved();
 
     // Constructor
-    constructor(IPoolManager _manager, string memory _uri) BaseHook(_manager) ERC1155(_uri) {}
+    constructor(IPoolManager _manager, string memory _uri, KYCRegistry _kycRegistry) BaseHook(_manager) ERC1155(_uri) {
+        kycRegistry = _kycRegistry;
+    }
 
     // BaseHook Functions
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
@@ -88,6 +96,9 @@ contract TakeProfitsHook is BaseHook, ERC1155 {
         external
         returns (int24)
     {
+        // Check if user is KYC approved
+        if (!kycRegistry.isKYCApproved(msg.sender)) revert NotKYCApproved();
+        
         int24 tick = getLowerUsableTick(tickToSellAt, key.tickSpacing);
         pendingOrders[key.toId()][tick][zeroForOne] += inputAmount;
 
@@ -102,6 +113,9 @@ contract TakeProfitsHook is BaseHook, ERC1155 {
     }
 
     function cancelOrder(PoolKey calldata key, int24 tickToSellAt, bool zeroForOne, uint256 amountToCancel) external {
+        // Check if user is KYC approved
+        if (!kycRegistry.isKYCApproved(msg.sender)) revert NotKYCApproved();
+        
         int24 tick = getLowerUsableTick(tickToSellAt, key.tickSpacing);
         uint256 orderId = getOrderId(key, tick, zeroForOne);
 
@@ -119,6 +133,9 @@ contract TakeProfitsHook is BaseHook, ERC1155 {
     function redeem(PoolKey calldata key, int24 tickToSellAt, bool zeroForOne, uint256 inputAmountToClaimFor)
         external
     {
+        // Check if user is KYC approved
+        if (!kycRegistry.isKYCApproved(msg.sender)) revert NotKYCApproved();
+        
         int24 tick = getLowerUsableTick(tickToSellAt, key.tickSpacing);
         uint256 orderId = getOrderId(key, tick, zeroForOne);
 
