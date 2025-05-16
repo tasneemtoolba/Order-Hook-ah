@@ -13,6 +13,8 @@ import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {TakeProfitsHook} from "../src/TakeProfitsHook.sol";
+import {SwapParams, ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
+import {TickMath} from "v4-core/libraries/TickMath.sol";
 
 /// @notice Mines the address and deploys the PointsHook.sol Hook contract
 contract TakeProfitsHookcript is Script, Deployers {
@@ -41,21 +43,13 @@ contract TakeProfitsHookcript is Script, Deployers {
         type(TakeProfitsHook).creationCode,
         abi.encode(manager, ""));
 
-    // (address hookAddress, bytes32 salt) = HookMiner.find(
-    //     address(this),
-    //     flags,
-    //     0,
-    //     type(TakeProfitsHook).creationCode,
-    //     abi.encode(manager, "TEST_POINTS")
-    // );
-
     // Deploy our hook
     TakeProfitsHook hook = new TakeProfitsHook{salt: salt}(
         manager,"" );
 
     // Approve our TOKEN for spending on the swap router and modify liquidity router
     // These variables are coming from the `Deployers` contract
-      // Approve our hook address to spend these tokens as well
+    // Approve our hook address to spend these tokens as well
     ERC20(Currency.unwrap(currency0)).approve(
         address(hook),
         type(uint256).max
@@ -67,6 +61,20 @@ contract TakeProfitsHookcript is Script, Deployers {
 
     // Initialize a pool
     (key, ) = initPool(currency0, currency1, hook, 3000, SQRT_PRICE_1_1);
+    // Add initial liquidity to the pool
+    modifyLiquidityRouter.modifyLiquidity(
+        key,
+        ModifyLiquidityParams({
+            tickLower: TickMath.minUsableTick(60),
+            tickUpper: TickMath.maxUsableTick(60),
+            liquidityDelta: 10 ether,
+            salt: bytes32(0)
+        }),
+        ZERO_BYTES
+    );
+    console.log(address(hook));
 
-}
+    console.log(hookAddress);
+    require(address(hook) == hookAddress, "TakeProfitHookScript: hook address mismatch"); 
+    }
 }
