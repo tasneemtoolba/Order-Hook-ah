@@ -16,6 +16,7 @@ import {
   TransactionStatus,
 } from "@coinbase/onchainkit/transaction";
 import { useNotification } from "@coinbase/onchainkit/minikit";
+import { encodeFunctionData } from "viem";
 
 type ButtonProps = {
   children: ReactNode;
@@ -160,21 +161,8 @@ type HomeProps = {
 export function Home({ setActiveTab }: HomeProps) {
   return (
     <div className="space-y-6 animate-fade-in">
-      <Card title="My First Mini App">
-        <p className="text-[var(--app-foreground-muted)] mb-4">
-          This is a minimalistic Mini App built with OnchainKit components.
-        </p>
-        <Button
-          onClick={() => setActiveTab("features")}
-          icon={<Icon name="arrow-right" size="sm" />}
-        >
-          Explore Features
-        </Button>
-      </Card>
-
-      <TodoList />
-
-      <TransactionCard />
+      <LimitOrderForm token0Name="HOOKah" token1Name="USDC" />
+      {/* <TransactionCard /> */}
     </div>
   );
 }
@@ -279,184 +267,264 @@ export function Icon({ name, size = "md", className = "" }: IconProps) {
   );
 }
 
-type Todo = {
-  id: number;
-  text: string;
-  completed: boolean;
+type LimitOrderFormProps = {
+  token0Name: string;
+  token1Name: string;
 }
-
-function TodoList() {
-  const [todos, setTodos] = useState<Todo[]>([
-    { id: 1, text: "Learn about MiniKit", completed: false },
-    { id: 2, text: "Build a Mini App", completed: true },
-    { id: 3, text: "Deploy to Base and go viral", completed: false },
-  ]);
-  const [newTodo, setNewTodo] = useState("");
-
-  const addTodo = () => {
-    if (newTodo.trim() === "") return;
-
-    const newId =
-      todos.length > 0 ? Math.max(...todos.map((t) => t.id)) + 1 : 1;
-    setTodos([...todos, { id: newId, text: newTodo, completed: false }]);
-    setNewTodo("");
-  };
-
-  const toggleTodo = (id: number) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
-      ),
-    );
-  };
-
-  const deleteTodo = (id: number) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      addTodo();
+const placeOrderABI = [{
+  "type": "function",
+  "name": "placeOrder",
+  "inputs": [
+    {
+      "name": "key",
+      "type": "tuple",
+      "internalType": "struct PoolKey",
+      "components": [
+        {
+          "name": "currency0",
+          "type": "address",
+          "internalType": "Currency"
+        },
+        {
+          "name": "currency1",
+          "type": "address",
+          "internalType": "Currency"
+        },
+        {
+          "name": "fee",
+          "type": "uint24",
+          "internalType": "uint24"
+        },
+        {
+          "name": "tickSpacing",
+          "type": "int24",
+          "internalType": "int24"
+        },
+        {
+          "name": "hooks",
+          "type": "address",
+          "internalType": "contract IHooks"
+        }
+      ]
+    },
+    {
+      "name": "tickToSellAt",
+      "type": "int24",
+      "internalType": "int24"
+    },
+    {
+      "name": "zeroForOne",
+      "type": "bool",
+      "internalType": "bool"
+    },
+    {
+      "name": "inputAmount",
+      "type": "uint256",
+      "internalType": "uint256"
     }
-  };
-
-  return (
-    <Card title="Get started">
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add a new task..."
-            className="flex-1 px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
-          />
-          <Button
-            variant="primary"
-            size="md"
-            onClick={addTodo}
-            icon={<Icon name="plus" size="sm" />}
-          >
-            Add
-          </Button>
-        </div>
-
-        <ul className="space-y-2">
-          {todos.map((todo) => (
-            <li key={todo.id} className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  id={`todo-${todo.id}`}
-                  onClick={() => toggleTodo(todo.id)}
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                    todo.completed
-                      ? "bg-[var(--app-accent)] border-[var(--app-accent)]"
-                      : "border-[var(--app-foreground-muted)] bg-transparent"
-                  }`}
-                >
-                  {todo.completed && (
-                    <Icon
-                      name="check"
-                      size="sm"
-                      className="text-[var(--app-background)]"
-                    />
-                  )}
-                </button>
-                <label
-                  htmlFor={`todo-${todo.id}`}
-                  className={`text-[var(--app-foreground-muted)] cursor-pointer ${todo.completed ? "line-through opacity-70" : ""}`}
-                >
-                  {todo.text}
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={() => deleteTodo(todo.id)}
-                className="text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Card>
-  );
-}
-
-
-function TransactionCard() {
+  ],
+  "outputs": [
+    {
+      "name": "",
+      "type": "int24",
+      "internalType": "int24"
+    }
+  ],
+  "stateMutability": "nonpayable"
+}] as const;
+function LimitOrderForm({ token0Name = "WETH", token1Name = "USDC" }: LimitOrderFormProps) {
+  const [tickAmount, setTickAmount] = useState("");
+  const [tokenAmount, setTokenAmount] = useState("");
+  const [selectedToken, setSelectedToken] = useState(token0Name);
   const { address } = useAccount();
+  const sendNotification = useNotification();
 
-  // Example transaction call - sending 0 ETH to self
+  // Example transaction call - This should be replaced with actual limit order contract call
   const calls = useMemo(() => address
     ? [
-        {
-          to: address,
-          data: "0x" as `0x${string}`,
-          value: BigInt(0),
-        },
-      ]
-    : [], [address]);
+      {
+        to: "0x256c1e930D23174cBad9A0c96099fb35bB531040", // This should be your limit order hook contract address
+        data: encodeFunctionData({
+          abi: placeOrderABI,
+          functionName: "placeOrder",
+          args: [{
+            "currency0": "0x04A7879B5bDc08Fd0cf232DCf0ccB1dB7AE86abf",
+            "currency1": "0x8683B74A60f2c6Eb8215Eb88416B745E86DDbE2d",
+            "fee": 0x800000,  // swapFee
+            "tickSpacing": 60,
+            "hooks": "0x256c1e930D23174cBad9A0c96099fb35bB531040"
 
-  const sendNotification = useNotification();
+          },
+            121,
+            false,
+          BigInt(1)]
+        }),
+        value: BigInt(0),
+      },
+    ]
+    : [], [address]);
 
   const handleSuccess = useCallback(async (response: TransactionResponse) => {
     const transactionHash = response.transactionReceipts[0].transactionHash;
-
-    console.log(`Transaction successful: ${transactionHash}`);
-
+    console.log(`Limit order placed successfully: ${transactionHash}`);
     await sendNotification({
-      title: "Congratulations!",
-      body: `You sent your a transaction, ${transactionHash}!`,
+      title: "Limit Order Placed!",
+      body: `Your limit order has been placed successfully. Hash: ${transactionHash}`,
     });
   }, [sendNotification]);
 
   return (
-    <Card title="Make Your First Transaction">
+    <Card title="Place Limit Order">
       <div className="space-y-4">
-        <p className="text-[var(--app-foreground-muted)] mb-4">
-          Experience the power of seamless sponsored transactions with{" "}
-          <a
-            href="https://onchainkit.xyz"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#0052FF] hover:underline"
-          >
-            OnchainKit
-          </a>
-          .
-        </p>
+        <div className="flex flex-col space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[var(--app-foreground-muted)] mb-2">
+              Tick Amount
+            </label>
+            <input
+              type="number"
+              value={tickAmount}
+              onChange={(e) => setTickAmount(e.target.value)}
+              placeholder="Enter tick amount..."
+              className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+            />
+          </div>
 
-        <div className="flex flex-col items-center">
-          {address ? (
-            <Transaction
-              calls={calls}
-              onSuccess={handleSuccess}
-              onError={(error: TransactionError) =>
-                console.error("Transaction failed:", error)
-              }
-            >
-              <TransactionButton className="text-white text-md" />
-              <TransactionStatus>
-                <TransactionStatusAction />
-                <TransactionStatusLabel />
-              </TransactionStatus>
-              <TransactionToast className="mb-4">
-                <TransactionToastIcon />
-                <TransactionToastLabel />
-                <TransactionToastAction />
-              </TransactionToast>
-            </Transaction>
-          ) : (
-            <p className="text-yellow-400 text-sm text-center mt-2">
-              Connect your wallet to send a transaction
-            </p>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-[var(--app-foreground-muted)] mb-2">
+              Token Amount
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="number"
+                value={tokenAmount}
+                onChange={(e) => setTokenAmount(e.target.value)}
+                placeholder="Enter token amount..."
+                className="flex-1 px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+              />
+              <select
+                value={selectedToken}
+                onChange={(e) => setSelectedToken(e.target.value)}
+                className="px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+              >
+                <option value={token0Name}>{token0Name}</option>
+                <option value={token1Name}>{token1Name}</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center">
+            {address ? (
+              <Transaction
+                calls={calls}
+                onSuccess={handleSuccess}
+                onError={(error: TransactionError) =>
+                  console.error("Limit order failed:", error)
+                }
+              >
+                <TransactionButton
+                  className="w-full text-white text-md bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] px-4 py-2 rounded-lg"
+                  text="Place Limit Order"
+                />
+                <TransactionStatus>
+                  <TransactionStatusAction />
+                  <TransactionStatusLabel />
+                </TransactionStatus>
+                <TransactionToast className="mb-4">
+                  <TransactionToastIcon />
+                  <TransactionToastLabel />
+                  <TransactionToastAction />
+                </TransactionToast>
+              </Transaction>
+            ) : (
+              <p className="text-yellow-400 text-sm text-center mt-2">
+                Connect your wallet to place a limit order
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 p-4 bg-[var(--app-card-bg)] rounded-lg border border-[var(--app-card-border)]">
+          <h4 className="text-sm font-medium text-[var(--app-foreground)] mb-2">Order Summary</h4>
+          <p className="text-sm text-[var(--app-foreground-muted)]">
+            You will swap {tokenAmount || '0'} {selectedToken} at tick {tickAmount || '0'}
+          </p>
         </div>
       </div>
     </Card>
   );
 }
+
+// function TransactionCard() {
+//   const { address } = useAccount();
+
+//   // Example transaction call - sending 0 ETH to self
+//   const calls = useMemo(() => address
+//     ? [
+//       {
+//         to: address,
+//         data: "0x" as `0x${string}`,
+//         value: BigInt(0),
+//       },
+//     ]
+//     : [], [address]);
+
+//   const sendNotification = useNotification();
+
+//   const handleSuccess = useCallback(async (response: TransactionResponse) => {
+//     const transactionHash = response.transactionReceipts[0].transactionHash;
+
+//     console.log(`Transaction successful: ${transactionHash}`);
+
+//     await sendNotification({
+//       title: "Congratulations!",
+//       body: `You sent your a transaction, ${transactionHash}!`,
+//     });
+//   }, [sendNotification]);
+
+//   return (
+//     <Card title="Make Your First Transaction">
+//       <div className="space-y-4">
+//         <p className="text-[var(--app-foreground-muted)] mb-4">
+//           Experience the power of seamless sponsored transactions with{" "}
+//           <a
+//             href="https://onchainkit.xyz"
+//             target="_blank"
+//             rel="noopener noreferrer"
+//             className="text-[#0052FF] hover:underline"
+//           >
+//             OnchainKit
+//           </a>
+//           .
+//         </p>
+
+//         <div className="flex flex-col items-center">
+//           {address ? (
+//             <Transaction
+//               calls={calls}
+//               onSuccess={handleSuccess}
+//               onError={(error: TransactionError) =>
+//                 console.error("Transaction failed:", error)
+//               }
+//             >
+//               <TransactionButton className="text-white text-md" />
+//               <TransactionStatus>
+//                 <TransactionStatusAction />
+//                 <TransactionStatusLabel />
+//               </TransactionStatus>
+//               <TransactionToast className="mb-4">
+//                 <TransactionToastIcon />
+//                 <TransactionToastLabel />
+//                 <TransactionToastAction />
+//               </TransactionToast>
+//             </Transaction>
+//           ) : (
+//             <p className="text-yellow-400 text-sm text-center mt-2">
+//               Connect your wallet to send a transaction
+//             </p>
+//           )}
+//         </div>
+//       </div>
+//     </Card>
+//   );
+// }
